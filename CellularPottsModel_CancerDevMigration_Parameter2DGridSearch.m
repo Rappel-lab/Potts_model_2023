@@ -14,8 +14,8 @@ clear
 % par2_list = [-300, 0, 100, 200, 300, 400, 500, 600, 1200]; % jcc
 
 % polarization - fold vs rate
-par1_list = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];    % rate
-par2_list = 2.^(-9:1);    % fold
+% par1_list = [8, 16, 32, 64, 128, 256, 512, 1024, 2048];    % rate
+% par2_list = 2.^(-9:1);    % fold
 
 % % polarization - gamma vs drate
 % par1_list = [1, 2, 4, 8, 16, 32, 64, 128, 256];    % drate
@@ -48,20 +48,35 @@ par2_list = 2.^(-9:1);    % fold
 % par1_list = [2, 5, 25];        % spheroid
 % par2_list = [75, 150, 300, 450, 600, 1200];
 
-par1name = 'rate';
-par2name = 'fold';
-% par1name = 'rate';
-% par2name = 'fold';
+
+% % polarization persistence vs mode of degradation
+% par1_list = [10, 1, 0.1, 0.01, 0.001, 0.0001];    % gamma
+% par2_list = [0, 0.5, 5, 12.5, 25, 37.5, 45, 49.5, 50];    % remodeling, kg 
+% par1name = 'polarization_persistence';
+% par2name = 'mode_of_degradation';
+
+% cell-cell adhesion vs mode of degradation
+par1_list = [-300, 100, 300, 400, 600, 1200];    % cell-cell adhesion, jcc
+par2_list = [0, 0.5, 5, 12.5, 25, 37.5, 45, 49.5, 50];    % remodeling, kg 
+par1name = 'cell-cell_adhesion';
+par2name = 'mode_of_degradation';
+
 repeatN_idx = '';
-repeatN = 1;
+repeatN = 4;
 run_counter = 0;
+skip_to = 0;
 rng(11693); % set random seed for reproducibility
 %%
 for par1 = par1_list
     for par2 = par2_list
         for repeatN_idx = 1:repeatN
 
-clearvars -except par1* par2* repeatN* run_counter
+clearvars -except par1* par2* repeatN* run_counter skip_to
+
+if run_counter < skip_to
+    run_counter = run_counter + 1;
+    continue
+end
 
 % rng(93); % set random seed for reproducibility
 parsave = 1;
@@ -89,7 +104,7 @@ scale = 10^5;
 % q.alpha = 0; % cAMP basal generation
 % q.thres = 0.3954/7.5; % spike
 
-q.rho = 50/scale; % spike %%% used to be 1 [1.1, 2023/05/11]
+q.rho = par2/scale; % spike %%% used to be 1 [1.1, 2023/05/11]
 
 % q.D = 0; % spike
 % DifS = 0; %%% used to be 8
@@ -105,11 +120,11 @@ DifD = 0.0005/100; %%% um^2/s = 0.5 * 10^-9 cm^2/s
 % q.tau = 0.3; % R
 % q.Kv = 10000/scale; % P, production
 % q.Kv = par1*par2/scale; % P, production [640, 2023/05/11], [2016, 2023/06/02]
-q.Kv = par1/scale; % P, production [640, 2023/05/11], [2016, 2023/06/02]
-% q.Kp = par1/scale; % P, degradation [10, 2023/05/11], [15.8, 2023/06/02]
-q.Kp = q.Kv*par2; % P, degradation [10, 2023/05/11], [15.8, 2023/06/02]
-q.KD1 = 0/scale; % D, local production [1.2, 2023/05/11]
-% q.KD1 = (50-par1)*10/scale; % D, local production [1.2, 2023/05/11]
+q.Kv = 640/scale; % P, production [640, 2023/05/11], [2016, 2023/06/02]
+q.Kp = 10/scale; % P, degradation [10, 2023/05/11], [15.8, 2023/06/02]
+% q.Kp = q.Kv*par1; % P, degradation [10, 2023/05/11], [15.8, 2023/06/02]
+% q.KD1 = 0/scale; % D, local production [1.2, 2023/05/11], turned off
+q.KD1 = (50-par2)*10/scale; % D, local production [1.2, 2023/05/11]
 q.KD2 = 9.6/scale; % D, degradation // half-life 2hour ~= 1e-4 s^-1 [9.6]
 q.Kdeg = 4444/scale; % D on S, s^-1 // literature ~= 16h^-1 [444]
 q.Sthres = 0.1; % threshold of S to be treated as 0
@@ -149,15 +164,15 @@ p.divide_t = (18*3600/dt)/2;
 scale1 = 5;
 jbg = 300;
 p.jma(1,1) = 0; % medium-medium
-p.jma(1,2) = 400; % cell-medium
-p.jma(2,1) = 400; % cell-medium
-p.jma(2,2) = 300; % cell-cell
+p.jma(1,2) = 400; % cell-medium [400]
+p.jma(2,1) = 400; % cell-medium [400]
+p.jma(2,2) = par1; % cell-cell  [300]
 
 scale2 = 1;
 p.jma(1,3) = 0; % medium-ECM
 p.jma(3,1) = 0; % medium-ECM
-p.jma(2,3) = 300; % cell-ECM
-p.jma(3,2) = 300; % cell-ECM
+p.jma(2,3) = 300; % cell-ECM [300]
+p.jma(3,2) = 300; % cell-ECM [300]
 p.jma(3,3) = 0; % ECM-ECM
 
 rho_jma_k = p.jma(2,3); % modifier for q.rho to depend on Jce, neutral effect if sets as same to jce
