@@ -13,12 +13,12 @@ clear
 
 
 % polarization - fold vs rate
-par1_list_FIXED = [8, 16, 32, 64, 128, 256, 512, 1024, 2028];    % rate
-par2_list_FIXED = 2.^(-9:1);    % fold
-par1name = 'rate';
-par2name = 'fold';
-repeatNN = 1;
-run_counter = 0;
+% par1_list_FIXED = [8, 16, 32, 64, 128, 256, 512, 1024, 2028];    % rate
+% par2_list_FIXED = 2.^(-9:1);    % fold
+% par1name = 'rate';
+% par2name = 'fold';
+% repeatNN = 1;
+% run_counter = 0;
 
 % par1_list_FIXED = 10.^linspace(-1.5,1,14);
 % par2_list_FIXED = 10.^linspace(-0.5,2,14);
@@ -37,6 +37,23 @@ run_counter = 0;
 % repeatNN = 10;
 % run_counter = 0;
 
+% polarization persistence vs mode of degradation [2024 May]
+par1_list_FIXED = [10, 1, 0.1, 0.01, 0.001, 0.0001];    % gamma
+par2_list_FIXED = [0, 0.5, 5, 12.5, 25, 37.5, 45, 49.5, 50];    % remodeling, kg
+par1name = 'polarization_persistence';
+par2name = 'mode_of_degradation';
+repeatNN = 4;
+run_counter = 0;
+
+% % cell-cell adhesion vs mode of degradation [2024 May]
+% par1_list_FIXED = [-300, 100, 300, 400, 600, 1200];    % cell-cell adhesion, jcc
+% par2_list_FIXED = [0, 0.5, 5, 12.5, 25, 37.5, 45, 49.5, 50];    % remodeling, kg 
+% par1name = 'cell-cell_adhesion';
+% par2name = 'mode_of_degradation';
+% repeatNN = 4;
+% run_counter = 0;
+
+save_cell_png = 0; % save a png of the 7-day cell clusters snapshot
 save_2cell_png = 0; % save a png of the last 2 cell snapshot
 
 [circularity_ALL, v1_avg_ALL, v2_avg_ALL, angv1_avg_ALL, angv2_avg_ALL, per_lin1_total_ALL, ...
@@ -53,7 +70,7 @@ for iii = 1:length(par1_list_FIXED)
 %         end                 %@%@%@
         for rrr = 1:repeatNN
         
-        clearvars -except iii jjj rrr par1* par2* repeatN* run_counter *_ALL save_2cell_png
+        clearvars -except iii jjj rrr par1* par2* repeatN* run_counter *_ALL save_2cell_png save_cell_png
         
 %         par1_list = 10.^linspace(-1.5,1,14); %@%@%@
 %         par2_list = 10.^linspace(-0.5,2,14); %@%@%@
@@ -144,28 +161,33 @@ for iii = 1:length(par1_list_FIXED)
             cell2ECMratio_ALL(iii,jjj,rrr) = sum(nsig(:) > 0)/sum(Snew(:) == 0);
         end
 
-        if save_2cell_png
-                FIG_2cell = figure('Position',[10 10 subplotN*512 512]);
-                colormap turbo
+        if save_cell_png
+            FIG_2cell = figure('Position',[10 10 subplotN*512 512]);
+            colormap turbo
             if sum(nsig_2cell(:)) ~= 0
                 imagesc(nsig_2cell*floor(87/2)+int8((nsig_2cell>0)*30)+int8(S_2cell/Smax*10),[0 128])
                 hold on 
                 quiver([cmx_2cell],[cmy_2cell],[Px_2cell]*Pscale,[Py_2cell]*Pscale,'off','color','white','LineWidth',1)
                 hold off
-            else
-                imagesc(nsig*floor(87/p.ncell)+int8((nsig>0)*30)+int8(Snew/Smax*10),[0 128])
-                hold on 
-                quiver([cmx],[cmy],[Px]*Pscale,[Py]*Pscale,'off','color','white','LineWidth',1)
-                hold off
+                saveas(FIG_2cell,sprintf('sim_%s%0.2e_%s%0.2e_%s_2cell.png',par1name,par1,par2name,par2,num2str(rrr)))
+                close(FIG_2cell)
             end
-            saveas(FIG_2cell,sprintf('sim_%s%0.2e_%s%0.2e_%s_2cell.png',par1name,par1,par2name,par2,num2str(rrr)))
-            close(FIG_2cell)
+            
+            Fig_7dayscell = figure('Position',[10 10 subplotN*512 512]);
+            colormap turbo
+            imagesc(nsig*floor(87/p.ncell)+int8((nsig>0)*30)+int8(Snew/Smax*10),[0 128])
+            hold on 
+            quiver([cmx],[cmy],[Px]*Pscale,[Py]*Pscale,'off','color','white','LineWidth',1)
+            hold off
+            saveas(Fig_7dayscell,sprintf('sim_%s%0.2e_%s%0.2e_%s_7dayscell.png',par1name,par1,par2name,par2,num2str(rrr)))
+            close(Fig_7dayscell)
         end
         run_counter = run_counter + 1;
         fprintf('%s:%0.2e, %s:%0.2e, repeat:%s [%d/%d]\n',par1name,par1,par2name,par2,num2str(rrr),run_counter,length(par1_list_FIXED)*length(par2_list_FIXED)*repeatN);
         end
     end
 end
+
 
 %% PART A
 %% Average over repeats (do not average if for whisket plot)
@@ -190,19 +212,28 @@ par2plotname = [];
 
 if strcmp(par1name,'rho')
     par1plotname = 'global degradation';
+else
+    par1plotname =  par1name;
 end
 
 if strcmp(par2name,'KDplus')
     par2plotname = 'local degradation';
+else
+    par2plotname = par2name;
 end
 
 %% Label change
-xtnew = [0,1,2];
-xtlbl = 10.^xtnew;
+% xtnew = [0,1,2];
+% xtlbl = 10.^xtnew;
+xtnew = par2_list_FIXED;
+xtlbl = xtnew;
 
-ytnew = [-1,0,1];
-ytlbl = 10.^ytnew;
+% ytnew = [-1,0,1];
+% ytlbl = 10.^ytnew;
+ytnew = par1_list_FIXED;
+ytlbl = ytnew;
 
+bp = [];    % boundary parameter
 %% Find boundary
 bp = [];    % boundary parameter
 x_newmin = -0.6;
@@ -244,20 +275,110 @@ bp.yvalid_onecell(bp.yvalid_onecell == max(bp.yvalid_onecell)) = onecell_rotcell
 bp.yvalid_rotcell(bp.yvalid_rotcell == min(bp.yvalid_rotcell)) = onecell_rotcell_ybound;
 
 %% Make plots
+% graph setting
 bpstatus = 0;
+epsilon = 1E-1;    % add small e for fixing inf/0 in loglog plot
+loglogplot = 0;
+
+% transform
+xplot_tick_labels = xtnew/50*100;    % percentage of gl
+% yplot_tick_labels = ytnew;    % cell-cell adhesion
+yplot_tick_labels = 1./ytnew;   % polariztion persistence
+par1plotname = "polarization persistence $\gamma$";    % polarization persistence
+% par1plotname = "cell-cell adhesion $J_{cc}$";    % cell-cell adhesion
+par2plotname = "global degradation (\%)";
+
+% plot_quantity = circularity_ALL;    % circularity
+% plot_quantity_name = 'Circularity';
+% plot_quantity_range = [0 1];
+plot_quantity = angv_avg;    % angv_avg
+plot_quantity_name = 'Angular Velocity ';
+plot_quantity_range = [0 3];
+
+
+if (ytnew(end) - ytnew(1)) > 0
+    ytnew=flip(ytnew);
+    yplot_tick_labels=flip(yplot_tick_labels);
+end
 
 f_circularity = figure;
-imagesc(log10(par2_list_FIXED), log10(par1_list_FIXED), circularity_ALL, [0 1])
+if loglogplot
+    xtnew = par2_list_FIXED+epsilon;
+    ytnew = par1_list_FIXED+epsilon;
+    imagesc(xtnew, log10(ytnew), plot_quantity, plot_quantity_range);
+else
+    imagesc(par2_list_FIXED, par1_list_FIXED, plot_quantity, plot_quantity_range);
+    xtlbl = xtnew;
+    ytlbl = ytnew;
+end
 hold on
+set(gca,'TickLength',[0 0])
 colorbar
-title('Circularity')
-cancer_parapair_commonplot(par1plotname, par2plotname, xtnew, xtlbl, ytnew, ytlbl, bp, bpstatus)
+title(plot_quantity_name)
 
+if loglogplot
+    cancer_parapair_commonplot(par1plotname, par2plotname, log10(xtnew), xtlbl, log10(flip(ytnew)), flip(ytlbl), bp, bpstatus)
+else
+    cancer_parapair_commonplot(par1plotname, par2plotname, linspace(xtnew(1),xtnew(end),length(xtnew)), xplot_tick_labels, flip(linspace(ytnew(1),ytnew(end),length(ytnew))), flip(yplot_tick_labels), bp, bpstatus)
+end
+
+% make grid
+s = size(plot_quantity);
+xrange = [par2_list_FIXED(1) par2_list_FIXED(end)];
+yrange = [par1_list_FIXED(1) par1_list_FIXED(end)];
+
+dx = diff(xrange)/(s(2)-1);
+dy = diff(yrange)/(s(1)-1);
+xg = linspace(xrange(1)-dx/2,xrange(2)+dx/2,s(2)+1);
+yg = linspace(yrange(1)-dy/2,yrange(2)+dy/2,s(1)+1);
+
+hm = mesh(xg,yg,zeros(s+1));
+hm.FaceColor = 'none';
+hm.EdgeColor = 'k';
+
+%%
 saveas(f_circularity,'circularity_nobp.png')
 
 % xtnew = linspace(min(par2_list), max(par2_list), 7);                      % New 'XTick' Values
 % xtlbl = 10.^round(linspace(log10(min(par2_list)), log10(max(par2_list)), 7),2);                        % New 'XTickLabel' Vector
 % set(gca, 'XTick', xtnew, 'XTickLabel', xtlbl)                               % Label Ticks
+%% annotate polarization to fig 3bcd
+set(gca, 'YDir','reverse')
+LineWidth = 2;
+
+x_plot_idx = 9;    % unit: grid, 100% global
+relative_x_pos = (xtnew(end)-xtnew(1))*(x_plot_idx-1)/(length(xtnew)-1);
+plot([relative_x_pos, relative_x_pos],[ytnew(1), ytnew(end)],'-k', 'LineWidth', LineWidth)
+text(relative_x_pos*0.98,-0.5,'II','FontSize',20,'fontweight', 'bold')
+
+x_plot_idx = 5;    % unit: grid, 50% global 50% local
+relative_x_pos = (xtnew(end)-xtnew(1))*(x_plot_idx-1)/(length(xtnew)-1);
+plot([relative_x_pos, relative_x_pos],[ytnew(1), ytnew(end)],'-k', 'LineWidth', LineWidth)
+text(relative_x_pos*0.975,-0.5,'I','FontSize',20,'fontweight', 'bold')
+
+
+y_plot_idx = 4-(log10(64)-log10(10));    % for gamma = 64, [idx=3, gamma=100] [idx=4,gamma=10]
+relative_y_pos = (ytnew(1)-ytnew(end))*(y_plot_idx-1)/(length(ytnew)-1);
+plot([xtnew(1), xtnew(end)],[relative_y_pos, relative_y_pos], '-k', 'LineWidth', LineWidth)
+text(xtnew(2)*0,relative_y_pos*0.85,'III','FontSize',20,'fontweight', 'bold')
+
+%% annotate cell-cell adhesion to fig 3df
+LineWidth = 2;
+
+x_plot_idx = 3;    % unit: grid, for local
+relative_x_pos = (xtnew(end)-xtnew(1))*(x_plot_idx-1)/(length(xtnew)-1);
+plot([relative_x_pos, relative_x_pos],[ytnew(1), 0],'-k', 'LineWidth', LineWidth)
+text(relative_x_pos*0.9125,ytnew(1)*1.06,'II','FontSize',20,'fontweight', 'bold')
+
+
+x_plot_idx = 7;    % unit: grid, for global
+relative_x_pos = (xtnew(end)-xtnew(1))*(x_plot_idx-1)/(length(xtnew)-1);
+plot([relative_x_pos, relative_x_pos],[ytnew(1), 0],'-k', 'LineWidth', LineWidth)
+text(relative_x_pos*0.9875,ytnew(1)*1.06,'I','FontSize',20,'fontweight', 'bold')
+
+% adjust to not show negative Jcc
+ylim([-150 , 1350])
+
 %%
 f_v = figure;
 imagesc(log10(par2_list_FIXED), log10(par1_list_FIXED), (v1_avg_ALL + v2_avg_ALL)/2)
